@@ -111,7 +111,7 @@ void atualizarProjeteis(Projetil** head) {
     Projetil* anterior = NULL;  // Ponteiro para o projétil anterior na lista
 
     while (atual != NULL) {
-        atual->posicao.y -= 5.0f; // Atualiza a posição do projétil na direção Y
+        atual->posicao.y -= 10.0f; // Atualiza a posição do projétil na direção Y
 
         // Verifica se o projétil saiu da tela
         if (atual->posicao.y < 0) {
@@ -220,7 +220,7 @@ void atualizarJogador(Jogador* jogador) {
     // Move o jogador para a esquerda se a tecla direcional esquerda estiver pressionada e o jogador estiver dentro dos limites
     if (IsKeyDown(KEY_LEFT) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
     // Diminui o combustível do jogador conforme ele se move
-    jogador->combustivel -= 0.1f;
+    jogador->combustivel -= 0.05f;
 }
 
 // Função para verificar colisões entre dois objetos com base em suas posições e tamanhos
@@ -277,7 +277,7 @@ void checarColisoes(ObjetoJogo* jogo) {
             combustivelAtual = combustivelAtual->prox;  // Move para o próximo combustível na lista
             free(temp);  // Libera a memória do combustível removido
 
-            jogo->jogador.combustivel += 30.0f;  // Adiciona 30 ao combustível do jogador
+            jogo->jogador.combustivel += 15.0f;  // Adiciona 30 ao combustível do jogador
             jogo->pontuacao += 10;  // Adiciona 10 à pontuação
             if (jogo->jogador.combustivel > 100.0f) {
                 jogo->jogador.combustivel = 100.0f;  // Garante que o combustível não ultrapasse o máximo de 100
@@ -350,6 +350,67 @@ void checarColisoesProjeteis(ObjetoJogo* jogo) {
     }
 }
 
+void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
+    // Inicializa ponteiros para iterar e manter o projétil atual e anterior na lista de projéteis
+    Projetil* projAtual = jogo->projeteis;
+    Projetil* projAnterior = NULL;
+
+    // Itera sobre todos os projéteis na lista
+    while (projAtual != NULL) {
+        // Inicializa ponteiros para iterar e manter o combustível atual e anterior na lista de combustíveis
+        Combustivel* combustivelAtual = jogo->combustiveis;
+        Combustivel* combustivelAnterior = NULL;
+
+        // Itera sobre todos os combustíveis na lista
+        while (combustivelAtual != NULL) {
+            // Verifica se há colisão entre o projétil atual e o combustível atual
+            if (checarColisao(projAtual->posicao, combustivelAtual->posicao, (Vector2){5, 10}, (Vector2){40, 40})) {
+                // Remove o projétil da lista
+                if (projAnterior == NULL) {
+                    // Atualiza o início da lista se o projétil removido é o primeiro
+                    jogo->projeteis = projAtual->prox;
+                } else {
+                    // Bypass o projétil removido
+                    projAnterior->prox = projAtual->prox;
+                }
+                // Armazena o ponteiro do projétil atual e move para o próximo projétil
+                Projetil* tempProj = projAtual;
+                projAtual = projAtual->prox;
+                free(tempProj); // Libera a memória do projétil removido
+
+                // Remove o combustível da lista
+                if (combustivelAnterior == NULL) {
+                    // Atualiza o início da lista se o combustível removido é o primeiro
+                    jogo->combustiveis = combustivelAtual->prox;
+                } else {
+                    // Bypass o combustível removido
+                    combustivelAnterior->prox = combustivelAtual->prox;
+                }
+                // Armazena o ponteiro do combustível atual e move para o próximo combustível
+                Combustivel* tempCombustivel = combustivelAtual;
+                combustivelAtual = combustivelAtual->prox;
+                free(tempCombustivel); // Libera a memória do combustível removido
+
+                // Adiciona pontos ao jogador
+                jogo->pontuacao += 20; // Adiciona 20 à pontuação
+
+                // Sai do loop de combustíveis para verificar outros projéteis
+                break;
+            } else {
+                // Atualiza o ponteiro para o combustível anterior e move para o próximo combustível
+                combustivelAnterior = combustivelAtual;
+                combustivelAtual = combustivelAtual->prox;
+            }
+        }
+
+        // Se o projétil atual não foi removido, atualiza o ponteiro para o projétil anterior e move para o próximo projétil
+        if (projAtual != NULL) {
+            projAnterior = projAtual;
+            projAtual = projAtual->prox;
+        }
+    }
+}
+
 void desenharJogador(Jogador* jogador) {
     // Desenha o jogador na tela como um retângulo azul, na posição especificada
     DrawRectangleV(jogador->posicao, (Vector2){40, 40}, BLUE);
@@ -378,26 +439,32 @@ int main() {
     int contadorInimigos = 0;   // Contador para controlar a geração de inimigos
     int contadorCombustiveis = 0;  // Contador para controlar a geração de combustíveis
 
-    while (!WindowShouldClose()) {  // Loop principal do jogo: continua enquanto a janela não for fechada
-        if (!jogo.gameOver) {  // Se o jogo não estiver em estado de "game over"
+    // Loop principal do jogo: continua enquanto a janela não for fechada
+    while (!WindowShouldClose()) {
+        // Se o jogo não estiver em estado de "game over"
+        if (!jogo.gameOver) {
             contadorInimigos++;
             contadorCombustiveis++;
             frames++;
 
-            if (frames % 600 == 0) {  // Aumenta a dificuldade a cada 600 frames (aproximadamente a cada 10 segundos se a 60 FPS)
+            // Aumenta a dificuldade a cada 900 frames (aproximadamente a cada 15 segundos se a 60 FPS)
+            if (frames % 900 == 0) {
                 dificuldade++;
             }
 
-            if (contadorInimigos >= 100 / dificuldade) {  // Verifica se é hora de gerar um novo inimigo
+            // Verifica se é hora de gerar um novo inimigo
+            if (contadorInimigos >= 100 / dificuldade) {
                 inserirInimigo(&jogo.inimigos, GetRandomValue(0, larguraTela - 30), 0);
                 contadorInimigos = 0;
             }
-            if (contadorCombustiveis >= 200 / dificuldade) {  // Verifica se é hora de gerar um novo combustível
+            // Verifica se é hora de gerar um novo combustível
+            if (contadorCombustiveis >= 200 / dificuldade) {
                 inserirCombustivel(&jogo.combustiveis, GetRandomValue(0, larguraTela - 30), 0);
                 contadorCombustiveis = 0;
             }
 
-            if (IsKeyPressed(KEY_SPACE)) {  // Verifica se a tecla de espaço foi pressionada para disparar um projétil
+            // Verifica se a tecla de espaço foi pressionada para disparar um projétil
+            if (IsKeyPressed(KEY_SPACE)) {
                 inserirProjetil(&jogo.projeteis, jogo.jogador.posicao.x + 17.5f, jogo.jogador.posicao.y); // Ajuste a posição conforme necessário
             }
 
@@ -407,6 +474,7 @@ int main() {
             atualizarProjeteis(&jogo.projeteis);  // Atualiza o estado dos projéteis
             checarColisoes(&jogo);  // Verifica colisões entre o jogador e outros objetos
             checarColisoesProjeteis(&jogo);  // Verifica colisões entre projéteis e inimigos
+            checarColisoesProjeteisCombustiveis(&jogo); // Adiciona a verificação de colisões entre projéteis e combustíveis
 
             // Verifica se o combustível do jogador acabou
             if (jogo.jogador.combustivel <= 0) {
@@ -422,7 +490,8 @@ int main() {
         BeginDrawing();  // Inicia o desenho na tela
         ClearBackground(RAYWHITE);  // Limpa o fundo da tela com a cor branca
 
-        if (jogo.gameOver) {  // Se o jogo está em estado de "game over"
+        // Se o jogo está em estado de "game over"
+        if (jogo.gameOver) {
             int gameOverWidth = MeasureText("Game Over!", 40);  // Calcula a largura do texto "Game Over!"
             DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 20, 40, RED); // Desenha o texto "Game Over!" centralizado na tela
             int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);  // Calcula a largura do texto da pontuação final
@@ -447,5 +516,5 @@ int main() {
     liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
     CloseWindow();  // Fecha a janela do jogo
 
-    return 0;
+    return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
 }
