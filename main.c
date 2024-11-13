@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+Texture2D jogadorTexture;
+
 // Estrutura para armazenar as informações do jogador
 typedef struct Jogador {
     Vector2 posicao;   // Posição do jogador
@@ -64,10 +66,20 @@ Projetil* criarProjetil(float x, float y) {
 }
 
 // Função para inserir um projétil na lista de projéteis
-void inserirProjetil(Projetil** head, float x, float y) {
-    Projetil* novo = criarProjetil(x, y); // Cria um novo projétil
-    novo->prox = *head; // Faz o novo projétil apontar para o início da lista
-    *head = novo; // Atualiza o início da lista para o novo projétil
+void inserirProjetil(Projetil** head, float jogadorX, float jogadorY) {
+    float jogadorWidth = 67;   // Largura do jogador
+    float jogadorHeight = 86;  // Altura do jogador
+    float projWidth = 5;       // Largura do projétil
+
+    // Centraliza o projétil na largura do jogador
+    float projX = jogadorX + (jogadorWidth / 2) - (projWidth / 2);
+
+    // Ajusta a posição Y para o topo do jogador
+    float projY = jogadorY - 10;  // Considerando que o projétil começa logo acima do jogador
+
+    Projetil* novo = criarProjetil(projX, projY);  // Cria um novo projétil na posição ajustada
+    novo->prox = *head;
+    *head = novo;
 }
 
 // Função para criar um novo combustível
@@ -194,12 +206,12 @@ void liberarProjeteis(Projetil* head) {
 // Função para inicializar o jogo com os parâmetros fornecidos
 void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
     // Define a posição inicial do jogador
-    jogo->jogador.posicao = (Vector2){500, 550};
+    jogo->jogador.posicao = (Vector2){(600 - 67) / 2, 600 - 86 - 10}; // Centraliza o jogador horizontalmente    
     // Define a velocidade de movimento do jogador
     jogo->jogador.velocidade = 6.0f;
     // Inicializa a vida do jogador (pode ser usada para outras funcionalidades futuras)
     jogo->jogador.vida = 3;
-    // Inicializa o combustível do jogador no máximo
+    // Inicializa o combustível do jogador no máximo 
     jogo->jogador.combustivel = 100.0f;
     // Mantém o número de vidas atual
     jogo->jogador.vidas = vidas;
@@ -216,7 +228,7 @@ void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
 // Função para atualizar a posição do jogador com base nas teclas pressionadas
 void atualizarJogador(Jogador* jogador) {
     // Move o jogador para a direita se a tecla direcional direita estiver pressionada e o jogador estiver dentro dos limites
-    if (IsKeyDown(KEY_RIGHT) && jogador->posicao.x < 560) jogador->posicao.x += jogador->velocidade;
+    if (IsKeyDown(KEY_RIGHT) && jogador->posicao.x < 600 - 67) jogador->posicao.x += jogador->velocidade;
     // Move o jogador para a esquerda se a tecla direcional esquerda estiver pressionada e o jogador estiver dentro dos limites
     if (IsKeyDown(KEY_LEFT) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
     // Diminui o combustível do jogador conforme ele se move
@@ -236,7 +248,7 @@ void checarColisoes(ObjetoJogo* jogo) {
     // Itera sobre todos os inimigos na lista
     while (inimigoAtual != NULL) {
         // Verifica se há colisão entre o jogador e o inimigo atual
-        if (checarColisao(jogo->jogador.posicao, inimigoAtual->posicao, (Vector2){40, 40}, (Vector2){40, 40})) {
+        if (checarColisao(jogo->jogador.posicao, inimigoAtual->posicao, (Vector2){60, 80}, (Vector2){40, 40})) {
             // Remove o inimigo da lista se colidir com o jogador
             if (inimigoAnterior == NULL) {
                 jogo->inimigos = inimigoAtual->prox;  // Atualiza o início da lista se o inimigo removido é o primeiro
@@ -266,7 +278,7 @@ void checarColisoes(ObjetoJogo* jogo) {
     // Itera sobre todos os combustíveis na lista
     while (combustivelAtual != NULL) {
         // Verifica se há colisão entre o jogador e o combustível atual
-        if (checarColisao(jogo->jogador.posicao, combustivelAtual->posicao, (Vector2){40, 40}, (Vector2){40, 40})) {
+        if (checarColisao(jogo->jogador.posicao, combustivelAtual->posicao, (Vector2){60, 80}, (Vector2){40, 40})) {
             // Remove o combustível da lista se colidir com o jogador
             if (combustivelAnterior == NULL) {
                 jogo->combustiveis = combustivelAtual->prox;  // Atualiza o início da lista se o combustível removido é o primeiro
@@ -412,8 +424,7 @@ void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
 }
 
 void desenharJogador(Jogador* jogador) {
-    // Desenha o jogador na tela como um retângulo azul, na posição especificada
-    DrawRectangleV(jogador->posicao, (Vector2){40, 40}, BLUE);
+    DrawTexture(jogadorTexture, jogador->posicao.x, jogador->posicao.y, WHITE);
     
     // Exibe o nível de combustível do jogador na tela, na posição (10, 30), com uma fonte de tamanho 20 e cor cinza escuro
     DrawText(TextFormat("Combustivel: %.0f", jogador->combustivel), 10, 30, 20, DARKGRAY);
@@ -426,6 +437,8 @@ int main() {
     const int larguraTela = 600;  // Define a largura da tela do jogo
     const int alturaTela = 600;   // Define a altura da tela do jogo
     InitWindow(larguraTela, alturaTela, "RiverXGH");  // Inicializa a janela do jogo com o título "RiverXGH"
+    
+    jogadorTexture = LoadTexture("resources/Fighter_type_A1.png");
 
     ObjetoJogo jogo;  // Declara uma variável do tipo ObjetoJogo para armazenar o estado do jogo
     inicializarJogo(&jogo, 3, 0); // Inicializa o jogo com 3 vidas e pontuação 0
@@ -464,8 +477,8 @@ int main() {
             }
 
             // Verifica se a tecla de espaço foi pressionada para disparar um projétil
-            if (IsKeyPressed(KEY_SPACE)) {
-                inserirProjetil(&jogo.projeteis, jogo.jogador.posicao.x + 17.5f, jogo.jogador.posicao.y); // Ajuste a posição conforme necessário
+            if (IsKeyPressed(KEY_SPACE)) { 
+            inserirProjetil(&jogo.projeteis, jogo.jogador.posicao.x, jogo.jogador.posicao.y); // Passa a posição do jogador 
             }
 
             atualizarJogador(&jogo.jogador);  // Atualiza o estado do jogador
@@ -514,6 +527,7 @@ int main() {
     liberarInimigos(jogo.inimigos);  // Libera a memória dos inimigos
     liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
     liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
+    UnloadTexture(jogadorTexture);
     CloseWindow();  // Fecha a janela do jogo
 
     return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
