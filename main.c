@@ -4,6 +4,11 @@
 #include <string.h>
 
 Texture2D jogadorTexture;
+Sound tiroSound;
+Sound aviaoSound;
+Sound explosaoSound;
+Sound quedaSound;
+Music musicaFundo;
 
 Rectangle botaoReiniciar = { 200, 400, 200, 50 };
 
@@ -33,6 +38,19 @@ typedef struct Projetil {
     Vector2 posicao;   // Posição do projétil
     struct Projetil* prox; // Ponteiro para o próximo projétil na lista
 } Projetil;
+
+typedef struct PadraoSpawn {
+    int numInimigos;
+    Vector2 inimigos[5];
+} PadraoSpawn;
+
+PadraoSpawn padroes[] = {
+    { 3, { {150, 0}, {300, 0}, {450, 0} } },
+    { 2, { {200, 0}, {400, 0} } },
+    { 4, { {100, 0}, {200, 0}, {400, 0}, {500, 0} } },
+};
+
+int numPadroes = sizeof(padroes) / sizeof(PadraoSpawn);
 
 // Estrutura para armazenar todas as informações do jogo
 typedef struct ObjetoJogo {
@@ -100,21 +118,21 @@ void inserirCombustivel(Combustivel** head, float x, float y) {
 }
 
 // Função para atualizar a posição dos inimigos
-void atualizarInimigos(Inimigo* head, int dificuldade) {
+void atualizarInimigos(Inimigo* head) {
     Inimigo* atual = head;
     while (atual != NULL) {
-        // Atualiza a posição do inimigo na direção Y, aumentando a velocidade conforme a dificuldade
-        atual->posicao.y += 2.0f + (0.5f * dificuldade);  
+        // Atualiza a posição do inimigo na direção Y com uma velocidade constante
+        atual->posicao.y += 2.0f;  
         atual = atual->prox;  // Passa para o próximo inimigo na lista
     }
 }
 
 // Função para atualizar a posição dos combustíveis
-void atualizarCombustiveis(Combustivel* head, int dificuldade) {
+void atualizarCombustiveis(Combustivel* head) {
     Combustivel* atual = head;
     while (atual != NULL) {
-        // Atualiza a posição do combustível na direção Y, aumentando a velocidade conforme a dificuldade
-        atual->posicao.y += 2.0f + (0.5f * dificuldade);  
+        // Atualiza a posição do combustível na direção Y com uma velocidade constante
+        atual->posicao.y += 2.0f;  
         atual = atual->prox;  // Passa para o próximo combustível na lista
     }
 }
@@ -205,12 +223,13 @@ void liberarProjeteis(Projetil* head) {
     }
 }
 
+// Função para carregar a maior pontuação do arquivo
 int carregarHighScore() {
     FILE* arquivo = fopen("highscore.txt", "r");
     if (arquivo == NULL) {
         return 0;  // Retorna 0 se o arquivo não existir
     }
-    
+
     int highScore;
     fscanf(arquivo, "%d", &highScore);
     fclose(arquivo);
@@ -229,11 +248,14 @@ void salvarHighScore(int pontuacao) {
     }
 }
 
-
 // Função para inicializar o jogo com os parâmetros fornecidos
 void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
+    // Inicia o som de avião de fundo
+    PlaySound(aviaoSound);
+    // Inicia a música de fundo
+    PlayMusicStream(musicaFundo);
     // Define a posição inicial do jogador
-    jogo->jogador.posicao = (Vector2){(600 - 67) / 2, 600 - 86 - 10}; // Centraliza o jogador horizontalmente    
+    jogo->jogador.posicao = (Vector2){(700 - 67) / 2, 700 - 86 - 10}; // Centraliza o jogador horizontalmente    
     // Define a velocidade de movimento do jogador
     jogo->jogador.velocidade = 6.0f;
     // Inicializa a vida do jogador (pode ser usada para outras funcionalidades futuras)
@@ -255,8 +277,10 @@ void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
 // Função para atualizar a posição do jogador com base nas teclas pressionadas
 void atualizarJogador(Jogador* jogador) {
     // Move o jogador para a direita se a tecla direcional direita estiver pressionada e o jogador estiver dentro dos limites
-    if (IsKeyDown(KEY_D) && jogador->posicao.x < 600 - 67) jogador->posicao.x += jogador->velocidade;
+    if (IsKeyDown(KEY_RIGHT) && jogador->posicao.x < 700 - 67) jogador->posicao.x += jogador->velocidade;
+    if (IsKeyDown(KEY_D) && jogador->posicao.x < 700 - 67) jogador->posicao.x += jogador->velocidade;
     // Move o jogador para a esquerda se a tecla direcional esquerda estiver pressionada e o jogador estiver dentro dos limites
+    if (IsKeyDown(KEY_LEFT) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
     if (IsKeyDown(KEY_A) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
     // Diminui o combustível do jogador conforme ele se move
     jogador->combustivel -= 0.05f;
@@ -276,6 +300,8 @@ void checarColisoes(ObjetoJogo* jogo) {
     while (inimigoAtual != NULL) {
         // Verifica se há colisão entre o jogador e o inimigo atual
         if (checarColisao(jogo->jogador.posicao, inimigoAtual->posicao, (Vector2){60, 80}, (Vector2){40, 40})) {
+            
+            PlaySound(explosaoSound);
             // Remove o inimigo da lista se colidir com o jogador
             if (inimigoAnterior == NULL) {
                 jogo->inimigos = inimigoAtual->prox;  // Atualiza o início da lista se o inimigo removido é o primeiro
@@ -316,7 +342,7 @@ void checarColisoes(ObjetoJogo* jogo) {
             combustivelAtual = combustivelAtual->prox;  // Move para o próximo combustível na lista
             free(temp);  // Libera a memória do combustível removido
 
-            jogo->jogador.combustivel += 15.0f;  // Adiciona 30 ao combustível do jogador
+            jogo->jogador.combustivel += 30.0f;  // Adiciona 30 ao combustível do jogador
             jogo->pontuacao += 10;  // Adiciona 10 à pontuação
             if (jogo->jogador.combustivel > 100.0f) {
                 jogo->jogador.combustivel = 100.0f;  // Garante que o combustível não ultrapasse o máximo de 100
@@ -452,26 +478,27 @@ void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
 
 void desenharJogador(Jogador* jogador) {
     DrawTexture(jogadorTexture, jogador->posicao.x, jogador->posicao.y, WHITE);
-    
-    // Exibe o nível de combustível do jogador na tela, na posição (10, 30), com uma fonte de tamanho 20 e cor cinza escuro
-    DrawText(TextFormat("Combustivel: %.0f", jogador->combustivel), 10, 30, 20, DARKGRAY);
-    
-    // Exibe o número de vidas do jogador na tela, na posição (10, 50), com uma fonte de tamanho 20 e cor cinza escuro
-    DrawText(TextFormat("Vidas: %d", jogador->vidas), 10, 50, 20, DARKGRAY);
 }
 
 int main() {
-    const int larguraTela = 600;  // Define a largura da tela do jogo
-    const int alturaTela = 600;   // Define a altura da tela do jogo
+    const int larguraTela = 700;  // Define a largura da tela do jogo
+    const int alturaTela = 700;   // Define a altura da tela do jogo
     InitWindow(larguraTela, alturaTela, "RiverXGH");  // Inicializa a janela do jogo com o título "RiverXGH"
+    InitAudioDevice();
     
     jogadorTexture = LoadTexture("resources/Fighter_type_A1.png");
+    tiroSound = LoadSound("resources/tiro.mp3");
+    aviaoSound = LoadSound("resources/aviao.mp3");
+    explosaoSound = LoadSound("resources/explosao.mp3");
+    quedaSound = LoadSound("resources/queda.mp3");
+    musicaFundo = LoadMusicStream("resources/musicafundo.mp3");
+    SetSoundVolume(aviaoSound, 0.1f);
+    SetMusicVolume(musicaFundo, 0.2f);
 
     ObjetoJogo jogo;  // Declara uma variável do tipo ObjetoJogo para armazenar o estado do jogo
     inicializarJogo(&jogo, 3, 0); // Inicializa o jogo com 3 vidas e pontuação 0
     jogo.projeteis = NULL; // Inicializa a lista de projéteis como vazia
     
-    int dificuldade = 1;  // Variável para armazenar a dificuldade inicial do jogo
     int frames = 0;       // Variável para contar o número de frames
 
     SetTargetFPS(60);  // Define o FPS (Frames Por Segundo) alvo para 60
@@ -479,45 +506,48 @@ int main() {
     int contadorInimigos = 0;   // Contador para controlar a geração de inimigos
     int contadorCombustiveis = 0;  // Contador para controlar a geração de combustíveis
 
-    // Loop principal do jogo: continua enquanto a janela não for fechada
     while (!WindowShouldClose()) {
+        UpdateMusicStream(musicaFundo);
         // Se o jogo não estiver em estado de "game over"
         if (!jogo.gameOver) {
             contadorInimigos++;
             contadorCombustiveis++;
             frames++;
 
-            // Aumenta a dificuldade a cada 900 frames (aproximadamente a cada 15 segundos se a 60 FPS)
-            if (frames % 900 == 0) {
-                dificuldade++;
-            }
+            // Verifica se é hora de gerar um novo inimigo usando padrões de spawn
+            if (contadorInimigos >= 200) {
+                int padraoIndex = GetRandomValue(0, numPadroes - 1);
+                PadraoSpawn padraoEscolhido = padroes[padraoIndex];
 
-            // Verifica se é hora de gerar um novo inimigo
-            if (contadorInimigos >= 100 / dificuldade) {
-                inserirInimigo(&jogo.inimigos, GetRandomValue(0, larguraTela - 30), 0);
+                for (int i = 0; i < padraoEscolhido.numInimigos; i++) {
+                    inserirInimigo(&jogo.inimigos, padraoEscolhido.inimigos[i].x, padraoEscolhido.inimigos[i].y);
+                }
+
                 contadorInimigos = 0;
             }
-            // Verifica se é hora de gerar um novo combustível
-            if (contadorCombustiveis >= 200 / dificuldade) {
+
+            if (contadorCombustiveis >= 300) {  // Ajuste para um valor fixo
                 inserirCombustivel(&jogo.combustiveis, GetRandomValue(0, larguraTela - 30), 0);
                 contadorCombustiveis = 0;
             }
 
             // Verifica se a tecla de espaço foi pressionada para disparar um projétil
-            if (IsKeyPressed(KEY_SPACE)) { 
-            inserirProjetil(&jogo.projeteis, jogo.jogador.posicao.x, jogo.jogador.posicao.y); // Passa a posição do jogador 
+            if (IsKeyPressed(KEY_SPACE)) {
+                PlaySound(tiroSound);
+                inserirProjetil(&jogo.projeteis, jogo.jogador.posicao.x, jogo.jogador.posicao.y);  // Passa a posição do jogador
             }
 
             atualizarJogador(&jogo.jogador);  // Atualiza o estado do jogador
-            atualizarInimigos(jogo.inimigos, dificuldade);  // Atualiza o estado dos inimigos com a dificuldade atual
-            atualizarCombustiveis(jogo.combustiveis, dificuldade);  // Atualiza o estado dos combustíveis com a dificuldade atual
+            atualizarInimigos(jogo.inimigos);  // Atualiza o estado dos inimigos
+            atualizarCombustiveis(jogo.combustiveis);  // Atualiza o estado dos combustíveis
             atualizarProjeteis(&jogo.projeteis);  // Atualiza o estado dos projéteis
             checarColisoes(&jogo);  // Verifica colisões entre o jogador e outros objetos
             checarColisoesProjeteis(&jogo);  // Verifica colisões entre projéteis e inimigos
-            checarColisoesProjeteisCombustiveis(&jogo); // Adiciona a verificação de colisões entre projéteis e combustíveis
+            checarColisoesProjeteisCombustiveis(&jogo);  // Adiciona a verificação de colisões entre projéteis e combustíveis
 
             // Verifica se o combustível do jogador acabou
             if (jogo.jogador.combustivel <= 0) {
+                PlaySound(quedaSound);
                 jogo.jogador.vidas--;  // Reduz uma vida do jogador
                 if (jogo.jogador.vidas <= 0) {
                     jogo.gameOver = 1;  // Define game over se o número de vidas do jogador for zero
@@ -528,53 +558,73 @@ int main() {
         }
 
         BeginDrawing();  // Inicia o desenho na tela
-        ClearBackground(RAYWHITE);  // Limpa o fundo da tela com a cor branca
+        ClearBackground(BLUE);  // Limpa o fundo da tela com a cor branca
 
-        // Se o jogo está em estado de "game over"
-             if (jogo.gameOver) {
-        // Desenhar o texto de "Game Over" e pontuação final
-        int gameOverWidth = MeasureText("Game Over!", 40);
-        DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 20, 40, RED);
-        int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);
-        DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2 + 20, 20, DARKGRAY);
+        if (jogo.gameOver) {
+            // Desenhar o texto de "Game Over" e pontuação final
+            salvarHighScore(jogo.pontuacao);
+            int highScore = carregarHighScore();
+            int gameOverWidth = MeasureText("Game Over!", 40);
+            DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 60, 40, RED);
+            StopSound(aviaoSound);
+            StopMusicStream(musicaFundo);
+            
+            int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);
+            DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2, 20, RAYWHITE);
+            
+            int highScoreWidth = MeasureText(TextFormat("High Score: %d", highScore), 20);
+            DrawText(TextFormat("High Score: %d", highScore), larguraTela / 2 - highScoreWidth / 2, alturaTela / 2 + 30, 20, GOLD);
 
-        // Desenhar o botão de "Jogar Novamente"
-        DrawRectangleRec(botaoReiniciar, GRAY); 
-        DrawText("Jogar Novamente", botaoReiniciar.x + (botaoReiniciar.width / 2) - (MeasureText("Jogar Novamente", 20) / 2), botaoReiniciar.y + 15, 20, BLACK);
+            // Definir a largura e altura do botão
+            botaoReiniciar.width = 200;  // Largura do botão
+            botaoReiniciar.height = 50;  // Altura do botão
 
-        // Detectar cliques no botão de "Jogar Novamente"
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
-            Vector2 mousePos = GetMousePosition();
-            if (CheckCollisionPointRec(mousePos, botaoReiniciar) || IsKeyPressed(KEY_SPACE)) {
-                // Reiniciar o jogo
-                inicializarJogo(&jogo, 3, 0);  // Reinicia o jogo com 3 vidas e pontuação 0
-                jogo.projeteis = NULL;
-                dificuldade = 1;
-                frames = 0;
-                contadorInimigos = 0;
-                contadorCombustiveis = 0;
+            // Centralizar o botão
+            botaoReiniciar.x = larguraTela / 2 - botaoReiniciar.width / 2;  // Ajuste a posição X para centralizar
+            botaoReiniciar.y = alturaTela / 2 + 60;   // Ajuste a posição Y
+            
+            DrawRectangleRec(botaoReiniciar, RAYWHITE);
+            DrawText("Jogar Novamente", botaoReiniciar.x + (botaoReiniciar.width / 2) - (MeasureText("Jogar Novamente", 20) / 2), botaoReiniciar.y + 15, 20, BLACK);
+
+            // Detectar cliques no botão de "Jogar Novamente"
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
+                Vector2 mousePos = GetMousePosition();
+                if (CheckCollisionPointRec(mousePos, botaoReiniciar) || IsKeyPressed(KEY_SPACE)) {
+                    // Reiniciar o jogo
+                    inicializarJogo(&jogo, 3, 0);
+                    jogo.projeteis = NULL;
+                    frames = 0;
+                    contadorInimigos = 0;
+                    contadorCombustiveis = 0;
                 }
             }
-        } else {  // Se o jogo não está em estado de "game over"
-            desenharJogador(&jogo.jogador);  // Desenha o jogador na tela
-            desenharInimigos(jogo.inimigos);  // Desenha os inimigos na tela
-            desenharCombustiveis(jogo.combustiveis);  // Desenha os combustíveis na tela
-            desenharProjeteis(jogo.projeteis);  // Desenha os projéteis na tela
+        }
+        else {  // Se o jogo não está em estado de "game over"
+                desenharJogador(&jogo.jogador);  // Desenha o jogador na tela
+                desenharInimigos(jogo.inimigos);  // Desenha os inimigos na tela
+                desenharCombustiveis(jogo.combustiveis);  // Desenha os combustíveis na tela
+                desenharProjeteis(jogo.projeteis);  // Desenha os projéteis na tela
 
-            // Desenha a pontuação, combustível e vidas apenas quando o jogo não está em estado de "Game Over"
-            DrawText(TextFormat("Pontuacao: %d", jogo.pontuacao), 10, 10, 20, DARKGRAY);
-            DrawText(TextFormat("Combustivel: %.0f", jogo.jogador.combustivel), 10, 30, 20, DARKGRAY);
-            DrawText(TextFormat("Vidas: %d", jogo.jogador.vidas), 10, 50, 20, DARKGRAY);
+                // Desenha a pontuação, combustível e vidas apenas quando o jogo não está em estado de "Game Over"
+                DrawText(TextFormat("Pontuacao: %d", jogo.pontuacao), 10, 10, 20, RAYWHITE);
+                DrawText(TextFormat("Combustivel: %.0f", jogo.jogador.combustivel), 10, 30, 20, RAYWHITE);
+                DrawText(TextFormat("Vidas: %d", jogo.jogador.vidas), 10, 50, 20, RAYWHITE);
+            }
+
+            EndDrawing();  // Finaliza o desenho na tela
         }
 
-        EndDrawing();  // Finaliza o desenho na tela
+        liberarInimigos(jogo.inimigos);  // Libera a memória dos inimigos
+        liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
+        liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
+        UnloadTexture(jogadorTexture);
+        UnloadSound(tiroSound);
+        UnloadSound(aviaoSound);
+        UnloadSound(explosaoSound);
+        UnloadSound(quedaSound);
+        UnloadMusicStream(musicaFundo);
+        CloseAudioDevice();
+        CloseWindow();  // Fecha a janela do jogo
+
+        return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
     }
-
-    liberarInimigos(jogo.inimigos);  // Libera a memória dos inimigos
-    liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
-    liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
-    UnloadTexture(jogadorTexture);
-    CloseWindow();  // Fecha a janela do jogo
-
-    return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
-}
