@@ -5,6 +5,8 @@
 
 Texture2D jogadorTexture;
 
+Rectangle botaoReiniciar = { 200, 400, 200, 50 };
+
 // Estrutura para armazenar as informações do jogador
 typedef struct Jogador {
     Vector2 posicao;   // Posição do jogador
@@ -203,7 +205,6 @@ void liberarProjeteis(Projetil* head) {
     }
 }
 
-// Função para carregar a maior pontuação do arquivo
 int carregarHighScore() {
     FILE* arquivo = fopen("highscore.txt", "r");
     if (arquivo == NULL) {
@@ -227,6 +228,7 @@ void salvarHighScore(int pontuacao) {
         }
     }
 }
+
 
 // Função para inicializar o jogo com os parâmetros fornecidos
 void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
@@ -253,9 +255,9 @@ void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
 // Função para atualizar a posição do jogador com base nas teclas pressionadas
 void atualizarJogador(Jogador* jogador) {
     // Move o jogador para a direita se a tecla direcional direita estiver pressionada e o jogador estiver dentro dos limites
-    if (IsKeyDown(KEY_RIGHT) && jogador->posicao.x < 600 - 67) jogador->posicao.x += jogador->velocidade;
+    if (IsKeyDown(KEY_D) && jogador->posicao.x < 600 - 67) jogador->posicao.x += jogador->velocidade;
     // Move o jogador para a esquerda se a tecla direcional esquerda estiver pressionada e o jogador estiver dentro dos limites
-    if (IsKeyDown(KEY_LEFT) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
+    if (IsKeyDown(KEY_A) && jogador->posicao.x > 0) jogador->posicao.x -= jogador->velocidade;
     // Diminui o combustível do jogador conforme ele se move
     jogador->combustivel -= 0.05f;
 }
@@ -468,7 +470,7 @@ int main() {
     ObjetoJogo jogo;  // Declara uma variável do tipo ObjetoJogo para armazenar o estado do jogo
     inicializarJogo(&jogo, 3, 0); // Inicializa o jogo com 3 vidas e pontuação 0
     jogo.projeteis = NULL; // Inicializa a lista de projéteis como vazia
-
+    
     int dificuldade = 1;  // Variável para armazenar a dificuldade inicial do jogo
     int frames = 0;       // Variável para contar o número de frames
 
@@ -529,18 +531,30 @@ int main() {
         ClearBackground(RAYWHITE);  // Limpa o fundo da tela com a cor branca
 
         // Se o jogo está em estado de "game over"
-        if (jogo.gameOver) {
-        // Salva o high score quando o jogo termina
-            salvarHighScore(jogo.pontuacao);
-            int highScore = carregarHighScore();
-            int gameOverWidth = MeasureText("Game Over!", 40);
-            DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 40, 40, RED);
-            int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);
-            DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao),
-            larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2, 20, DARKGRAY);
-            int highScoreWidth = MeasureText(TextFormat("High Score: %d", highScore), 20);
-            DrawText(TextFormat("High Score: %d", highScore),
-            larguraTela / 2 - highScoreWidth / 2, alturaTela / 2 + 30, 20, GOLD);
+             if (jogo.gameOver) {
+        // Desenhar o texto de "Game Over" e pontuação final
+        int gameOverWidth = MeasureText("Game Over!", 40);
+        DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 20, 40, RED);
+        int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);
+        DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2 + 20, 20, DARKGRAY);
+
+        // Desenhar o botão de "Jogar Novamente"
+        DrawRectangleRec(botaoReiniciar, GRAY); 
+        DrawText("Jogar Novamente", botaoReiniciar.x + (botaoReiniciar.width / 2) - (MeasureText("Jogar Novamente", 20) / 2), botaoReiniciar.y + 15, 20, BLACK);
+
+        // Detectar cliques no botão de "Jogar Novamente"
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
+            Vector2 mousePos = GetMousePosition();
+            if (CheckCollisionPointRec(mousePos, botaoReiniciar) || IsKeyPressed(KEY_SPACE)) {
+                // Reiniciar o jogo
+                inicializarJogo(&jogo, 3, 0);  // Reinicia o jogo com 3 vidas e pontuação 0
+                jogo.projeteis = NULL;
+                dificuldade = 1;
+                frames = 0;
+                contadorInimigos = 0;
+                contadorCombustiveis = 0;
+                }
+            }
         } else {  // Se o jogo não está em estado de "game over"
             desenharJogador(&jogo.jogador);  // Desenha o jogador na tela
             desenharInimigos(jogo.inimigos);  // Desenha os inimigos na tela
@@ -552,7 +566,6 @@ int main() {
             DrawText(TextFormat("Combustivel: %.0f", jogo.jogador.combustivel), 10, 30, 20, DARKGRAY);
             DrawText(TextFormat("Vidas: %d", jogo.jogador.vidas), 10, 50, 20, DARKGRAY);
         }
-        
 
         EndDrawing();  // Finaliza o desenho na tela
     }
