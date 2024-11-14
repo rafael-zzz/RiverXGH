@@ -203,6 +203,31 @@ void liberarProjeteis(Projetil* head) {
     }
 }
 
+// Função para carregar a maior pontuação do arquivo
+int carregarHighScore() {
+    FILE* arquivo = fopen("highscore.txt", "r");
+    if (arquivo == NULL) {
+        return 0;  // Retorna 0 se o arquivo não existir
+    }
+    
+    int highScore;
+    fscanf(arquivo, "%d", &highScore);
+    fclose(arquivo);
+    return highScore;
+}
+
+// Função para salvar a maior pontuação no arquivo
+void salvarHighScore(int pontuacao) {
+    int highScoreAtual = carregarHighScore();
+    if (pontuacao > highScoreAtual) {
+        FILE* arquivo = fopen("highscore.txt", "w");
+        if (arquivo != NULL) {
+            fprintf(arquivo, "%d", pontuacao);
+            fclose(arquivo);
+        }
+    }
+}
+
 // Função para inicializar o jogo com os parâmetros fornecidos
 void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
     // Define a posição inicial do jogador
@@ -505,10 +530,17 @@ int main() {
 
         // Se o jogo está em estado de "game over"
         if (jogo.gameOver) {
-            int gameOverWidth = MeasureText("Game Over!", 40);  // Calcula a largura do texto "Game Over!"
-            DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 20, 40, RED); // Desenha o texto "Game Over!" centralizado na tela
-            int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);  // Calcula a largura do texto da pontuação final
-            DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2 + 20, 20, DARKGRAY); // Desenha a pontuação final abaixo de "Game Over"
+        // Salva o high score quando o jogo termina
+            salvarHighScore(jogo.pontuacao);
+            int highScore = carregarHighScore();
+            int gameOverWidth = MeasureText("Game Over!", 40);
+            DrawText("Game Over!", larguraTela / 2 - gameOverWidth / 2, alturaTela / 2 - 40, 40, RED);
+            int pontuacaoWidth = MeasureText(TextFormat("Pontuacao Final: %d", jogo.pontuacao), 20);
+            DrawText(TextFormat("Pontuacao Final: %d", jogo.pontuacao),
+            larguraTela / 2 - pontuacaoWidth / 2, alturaTela / 2, 20, DARKGRAY);
+            int highScoreWidth = MeasureText(TextFormat("High Score: %d", highScore), 20);
+            DrawText(TextFormat("High Score: %d", highScore),
+            larguraTela / 2 - highScoreWidth / 2, alturaTela / 2 + 30, 20, GOLD);
         } else {  // Se o jogo não está em estado de "game over"
             desenharJogador(&jogo.jogador);  // Desenha o jogador na tela
             desenharInimigos(jogo.inimigos);  // Desenha os inimigos na tela
@@ -520,6 +552,7 @@ int main() {
             DrawText(TextFormat("Combustivel: %.0f", jogo.jogador.combustivel), 10, 30, 20, DARKGRAY);
             DrawText(TextFormat("Vidas: %d", jogo.jogador.vidas), 10, 50, 20, DARKGRAY);
         }
+        
 
         EndDrawing();  // Finaliza o desenho na tela
     }
