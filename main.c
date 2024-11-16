@@ -2,12 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
-#include <time.h>
-
 
 int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
-int frameContador = 0;
 
 Texture2D jogadorTexture;
 Sound tiroSound;
@@ -31,12 +27,7 @@ typedef struct Jogador {
 // Estrutura para armazenar as informações dos inimigos
 typedef struct Inimigo {
     Vector2 posicao;   // Posição do inimigo
-    float velocidade;  // Adicionar este campo
-    int direcaoX; 
-    int direcaoY; 
-    int explodindo;
-    float tempoExplosao;
-    struct Inimigo* prox; 
+    struct Inimigo* prox; // Ponteiro para o próximo inimigo na lista
 } Inimigo;
 
 // Estrutura para armazenar as informações dos combustíveis
@@ -47,10 +38,8 @@ typedef struct Combustivel {
 
 // Estrutura para armazenar as informações dos projéteis
 typedef struct Projetil {
-    Vector2 posicao;
-    float direcaoX;  // Nova adição
-    float direcaoY;  // Nova adição
-    struct Projetil* prox;
+    Vector2 posicao;   // Posição do projétil
+    struct Projetil* prox; // Ponteiro para o próximo projétil na lista
 } Projetil;
 
 typedef struct PadraoSpawn {
@@ -79,7 +68,7 @@ typedef struct ObjetoJogo {
 // Função para criar um novo inimigo
 Inimigo* criarInimigo(float x, float y) {
     Inimigo* novo = (Inimigo*)malloc(sizeof(Inimigo)); // Aloca memória para um novo inimigo
-    novo->posicao = (Vector2){x, y}; // Define a posição do inimigo
+    novo->posicao = (Vector2){ x, y }; // Define a posição do inimigo
     novo->prox = NULL; // Inicializa o ponteiro para o próximo inimigo como NULL
     return novo;
 }
@@ -94,7 +83,7 @@ void inserirInimigo(Inimigo** head, float x, float y) {
 // Função para criar um novo projétil
 Projetil* criarProjetil(float x, float y) {
     Projetil* novo = (Projetil*)malloc(sizeof(Projetil)); // Aloca memória para um novo projétil
-    novo->posicao = (Vector2){x, y}; // Define a posição do projétil
+    novo->posicao = (Vector2){ x, y }; // Define a posição do projétil
     novo->prox = NULL; // Inicializa o ponteiro para o próximo projétil como NULL
     return novo;
 }
@@ -119,7 +108,7 @@ void inserirProjetil(Projetil** head, float jogadorX, float jogadorY) {
 // Função para criar um novo combustível
 Combustivel* criarCombustivel(float x, float y) {
     Combustivel* novo = (Combustivel*)malloc(sizeof(Combustivel)); // Aloca memória para um novo combustível
-    novo->posicao = (Vector2){x, y}; // Define a posição do combustível
+    novo->posicao = (Vector2){ x, y }; // Define a posição do combustível
     novo->prox = NULL; // Inicializa o ponteiro para o próximo combustível como NULL
     return novo;
 }
@@ -136,7 +125,7 @@ void atualizarInimigos(Inimigo* head) {
     Inimigo* atual = head;
     while (atual != NULL) {
         // Atualiza a posição do inimigo na direção Y com uma velocidade constante
-        atual->posicao.y += 2.0f;  
+        atual->posicao.y += 2.0f;
         atual = atual->prox;  // Passa para o próximo inimigo na lista
     }
 }
@@ -146,34 +135,35 @@ void atualizarCombustiveis(Combustivel* head) {
     Combustivel* atual = head;
     while (atual != NULL) {
         // Atualiza a posição do combustível na direção Y com uma velocidade constante
-        atual->posicao.y += 2.0f;  
+        atual->posicao.y += 2.0f;
         atual = atual->prox;  // Passa para o próximo combustível na lista
     }
 }
 
 // Função para atualizar a posição dos projéteis e removê-los se saírem da tela
 void atualizarProjeteis(Projetil** head) {
-    Projetil* atual = *head;
-    Projetil* anterior = NULL;
-    
-    while (atual != NULL) {
-        atual->posicao.x += atual->direcaoX;
-        atual->posicao.y += atual->direcaoY;
+    Projetil* atual = *head;  // Ponteiro para o projétil atual
+    Projetil* anterior = NULL;  // Ponteiro para o projétil anterior na lista
 
-        // Lógica de remoção de projéteis fora da tela
-        if (atual->posicao.y < 0 || atual->posicao.y > 700 || 
-            atual->posicao.x < 0 || atual->posicao.x > 700) {
+    while (atual != NULL) {
+        atual->posicao.y -= 10.0f; // Atualiza a posição do projétil na direção Y
+
+        // Verifica se o projétil saiu da tela
+        if (atual->posicao.y < 0) {
+            // Remove o projétil da lista
             if (anterior == NULL) {
-                *head = atual->prox;
-            } else {
-                anterior->prox = atual->prox;
+                *head = atual->prox;  // Atualiza o início da lista se for o primeiro projétil
             }
-            Projetil* temp = atual;
-            atual = atual->prox;
-            free(temp);
-        } else {
-            anterior = atual;
-            atual = atual->prox;
+            else {
+                anterior->prox = atual->prox;  // Faz o projétil anterior apontar para o próximo, pulando o projétil atual
+            }
+            Projetil* temp = atual;  // Armazena o ponteiro do projétil a ser removido
+            atual = atual->prox;  // Move para o próximo projétil na lista
+            free(temp);  // Libera a memória do projétil removido
+        }
+        else {
+            anterior = atual;  // Atualiza o ponteiro do projétil anterior
+            atual = atual->prox;  // Move para o próximo projétil na lista
         }
     }
 }
@@ -183,143 +173,17 @@ void desenharInimigos(Inimigo* head) {
     Inimigo* atual = head;  // Ponteiro para o inimigo atual
     while (atual != NULL) {
         // Desenha cada inimigo como um retângulo vermelho na posição atual
-        DrawRectangleV(atual->posicao, (Vector2){40, 40}, RED);  
+        DrawRectangleV(atual->posicao, (Vector2) { 40, 40 }, RED);
         atual = atual->prox;  // Move para o próximo inimigo na lista
     }
 }
-
-void inserirProjetilDirecional(Projetil** head, float x, float y, float dx, float dy) {
-    Projetil* novo = (Projetil*)malloc(sizeof(Projetil));
-    novo->posicao = (Vector2){x, y};
-    novo->direcaoX = dx;  // Adicionar campos de direção na estrutura Projetil
-    novo->direcaoY = dy;
-    novo->prox = *head;
-    *head = novo;
-}
-
-void criarInimigoKamikaze(ObjetoJogo* jogo, float x, float y) {
-    Inimigo* novo = (Inimigo*)malloc(sizeof(Inimigo));
-    novo->posicao.x = x;
-    novo->posicao.y = y;
-    novo->velocidade = 5.0f;
-    novo->direcaoX = GetRandomValue(-1, 1);
-    novo->direcaoY = GetRandomValue(-1, 1);
-    novo->explodindo = 0;
-    novo->tempoExplosao = 0.0f;
-    novo->prox = jogo->inimigos;
-    jogo->inimigos = novo;
-}
-
-void atualizarInimigoKamikaze(ObjetoJogo* jogo, Inimigo* inimigo, float dt) {
-    if (!inimigo->explodindo) {
-        // Mover o inimigo em direção ao jogador
-        float jogadorX = jogo->jogador.posicao.x;
-        float jogadorY = jogo->jogador.posicao.y;
-        
-        if (jogadorX > inimigo->posicao.x) inimigo->direcaoX = 1;
-        else if (jogadorX < inimigo->posicao.x) inimigo->direcaoX = -1;
-        else inimigo->direcaoX = 0;
-        
-        if (jogadorY > inimigo->posicao.y) inimigo->direcaoY = 1;
-        else if (jogadorY < inimigo->posicao.y) inimigo->direcaoY = -1;
-        else inimigo->direcaoY = 0;
-        
-        inimigo->posicao.x += inimigo->direcaoX * inimigo->velocidade;
-        inimigo->posicao.y += inimigo->direcaoY * inimigo->velocidade;
-        
-        // Verificar colisão com o jogador
-        if (CheckCollisionRecs((Rectangle){inimigo->posicao.x, inimigo->posicao.y, 40, 40},
-                              (Rectangle){jogo->jogador.posicao.x, jogo->jogador.posicao.y, 60, 80})) {
-            inimigo->explodindo = 1;
-            inimigo->tempoExplosao = 0.0f;
-            PlaySound(explosaoSound);
-            jogo->jogador.vidas--;
-            if (jogo->jogador.vidas <= 0) {
-                jogo->gameOver = 1;
-            }
-        }
-    } else {
-        // Animação de explosão
-        inimigo->tempoExplosao += dt;
-        if (inimigo->tempoExplosao >= 1.0f) {
-            // Remover o inimigo após a explosão
-            Inimigo* atual = jogo->inimigos;
-            Inimigo* anterior = NULL;
-            while (atual != NULL) {
-                if (atual == inimigo) {
-                    if (anterior == NULL) {
-                        jogo->inimigos = atual->prox;
-                    } else {
-                        anterior->prox = atual->prox;
-                    }
-                    free(atual);
-                    return;
-                }
-                anterior = atual;
-                atual = atual->prox;
-            }
-        }
-    }
-}
-
-void desenharInimigoKamikaze(Inimigo* inimigo) {
-    if (!inimigo->explodindo) {
-        DrawRectangleV(inimigo->posicao, (Vector2){40, 40}, RED);
-    } else {
-        // Desenhar a animação de explosão
-        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 40 * (1.0f - inimigo->tempoExplosao), ORANGE);
-        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 30 * (1.0f - inimigo->tempoExplosao), RED);
-        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 20 * (1.0f - inimigo->tempoExplosao), YELLOW);
-    }
-}
-
-#define NUM_PROJECTILES 6
-
-// Adicione um parâmetro para passar o objeto do jogo
-void updateCurvedShooterEnemy(Inimigo* inimigo, ObjetoJogo* jogo) {
-    // Usar GetTime() da raylib ou uma alternativa mais precisa
-    static float tempoTotal = 0.0f;
-    tempoTotal += GetFrameTime(); // Usando função da raylib para tempo de frame
-
-    // Movimento curvo usando tempo e funções trigonométricas
-    inimigo->posicao.x += cosf(tempoTotal * 2.0f) * 3.0f;
-    inimigo->posicao.y += sinf(tempoTotal * 2.0f) * 3.0f;
-
-    // Incrementar contador de frames
-    frameContador++;
-
-    // Disparo de projéteis a cada 60 frames (aproximadamente 1 segundo)
-    if (frameContador % 60 == 0) { 
-        for (int i = 0; i < NUM_PROJECTILES; i++) {
-            float angle = (i * 2 * PI) / NUM_PROJECTILES;
-            float projectileX = inimigo->posicao.x + cosf(angle) * 20;
-            float projectileY = inimigo->posicao.y + sinf(angle) * 20;
-            
-            // Passar velocidades de projétil
-            float velocidadeX = cosf(angle) * 5;
-            float velocidadeY = sinf(angle) * 5;
-            
-            // Criar projétil direcional
-            inserirProjetilDirecional(&jogo->projeteis, projectileX, projectileY, velocidadeX, velocidadeY);
-        }
-    }
-}
-
-
-void updateTrianglePatternEnemy(Inimigo* inimigo) {
-    static float t = 0.0f;
-    t += GetFrameTime() * 1.5f;
-    inimigo->posicao.x = 200 + 200 * cosf(t);
-    inimigo->posicao.y = 300 + 100 * sinf(t * 2);
-}
-
 
 // Função para desenhar todos os combustíveis na tela
 void desenharCombustiveis(Combustivel* head) {
     Combustivel* atual = head;  // Ponteiro para o combustível atual
     while (atual != NULL) {
         // Desenha cada combustível como um retângulo verde na posição atual
-        DrawRectangleV(atual->posicao, (Vector2){40, 40}, GREEN); 
+        DrawRectangleV(atual->posicao, (Vector2) { 40, 40 }, GREEN);
         atual = atual->prox;  // Move para o próximo combustível na lista
     }
 }
@@ -329,7 +193,7 @@ void desenharProjeteis(Projetil* head) {
     Projetil* atual = head;  // Ponteiro para o projétil atual
     while (atual != NULL) {
         // Desenha cada projétil como um retângulo preto na posição atual
-        DrawRectangleV(atual->posicao, (Vector2){5, 10}, BLACK);  
+        DrawRectangleV(atual->posicao, (Vector2) { 5, 10 }, BLACK);
         atual = atual->prox;  // Move para o próximo projétil na lista
     }
 }
@@ -391,12 +255,10 @@ void salvarHighScore(int pontuacao) {
 
 // Função para inicializar o jogo com os parâmetros fornecidos
 void inicializarJogo(ObjetoJogo* jogo, int vidas, int pontuacao) {
-    // Inicia o som de avião de fundo
-    PlaySound(aviaoSound);
     // Inicia a música de fundo
     PlayMusicStream(musicaFundo);
     // Define a posição inicial do jogador
-    jogo->jogador.posicao = (Vector2){(700 - 67) / 2, 700 - 86 - 10}; // Centraliza o jogador horizontalmente    
+    jogo->jogador.posicao = (Vector2){ (700 - 67) / 2, 700 - 86 - 10 }; // Centraliza o jogador horizontalmente    
     // Define a velocidade de movimento do jogador
     jogo->jogador.velocidade = 6.0f;
     // Inicializa a vida do jogador (pode ser usada para outras funcionalidades futuras)
@@ -440,13 +302,14 @@ void checarColisoes(ObjetoJogo* jogo) {
     // Itera sobre todos os inimigos na lista
     while (inimigoAtual != NULL) {
         // Verifica se há colisão entre o jogador e o inimigo atual
-        if (checarColisao(jogo->jogador.posicao, inimigoAtual->posicao, (Vector2){60, 80}, (Vector2){40, 40})) {
-            
+        if (checarColisao(jogo->jogador.posicao, inimigoAtual->posicao, (Vector2) { 60, 80 }, (Vector2) { 40, 40 })) {
+
             PlaySound(explosaoSound);
             // Remove o inimigo da lista se colidir com o jogador
             if (inimigoAnterior == NULL) {
                 jogo->inimigos = inimigoAtual->prox;  // Atualiza o início da lista se o inimigo removido é o primeiro
-            } else {
+            }
+            else {
                 inimigoAnterior->prox = inimigoAtual->prox;  // Bypass o inimigo removido
             }
             Inimigo* temp = inimigoAtual;  // Armazena o ponteiro do inimigo atual
@@ -456,11 +319,13 @@ void checarColisoes(ObjetoJogo* jogo) {
             jogo->jogador.vidas--;  // Reduz uma vida do jogador
             if (jogo->jogador.vidas <= 0) {
                 jogo->gameOver = 1;  // Define game over se o número de vidas do jogador for zero
-            } else {
+            }
+            else {
                 inicializarJogo(jogo, jogo->jogador.vidas, jogo->pontuacao);  // Reinicia o jogo com o número de vidas e pontuação atual
             }
             return;  // Sai da função após a colisão e remoção do inimigo
-        } else {
+        }
+        else {
             inimigoAnterior = inimigoAtual;  // Atualiza o ponteiro para o inimigo anterior
             inimigoAtual = inimigoAtual->prox;  // Move para o próximo inimigo na lista
         }
@@ -472,11 +337,12 @@ void checarColisoes(ObjetoJogo* jogo) {
     // Itera sobre todos os combustíveis na lista
     while (combustivelAtual != NULL) {
         // Verifica se há colisão entre o jogador e o combustível atual
-        if (checarColisao(jogo->jogador.posicao, combustivelAtual->posicao, (Vector2){60, 80}, (Vector2){40, 40})) {
+        if (checarColisao(jogo->jogador.posicao, combustivelAtual->posicao, (Vector2) { 60, 80 }, (Vector2) { 40, 40 })) {
             // Remove o combustível da lista se colidir com o jogador
             if (combustivelAnterior == NULL) {
                 jogo->combustiveis = combustivelAtual->prox;  // Atualiza o início da lista se o combustível removido é o primeiro
-            } else {
+            }
+            else {
                 combustivelAnterior->prox = combustivelAtual->prox;  // Bypass o combustível removido
             }
             Combustivel* temp = combustivelAtual;  // Armazena o ponteiro do combustível atual
@@ -488,7 +354,8 @@ void checarColisoes(ObjetoJogo* jogo) {
             if (jogo->jogador.combustivel > 100.0f) {
                 jogo->jogador.combustivel = 100.0f;  // Garante que o combustível não ultrapasse o máximo de 100
             }
-        } else {
+        }
+        else {
             combustivelAnterior = combustivelAtual;  // Atualiza o ponteiro para o combustível anterior
             combustivelAtual = combustivelAtual->prox;  // Move para o próximo combustível na lista
         }
@@ -509,12 +376,13 @@ void checarColisoesProjeteis(ObjetoJogo* jogo) {
         // Itera sobre todos os inimigos na lista
         while (inimigoAtual != NULL) {
             // Verifica se há colisão entre o projétil atual e o inimigo atual
-            if (checarColisao(projAtual->posicao, inimigoAtual->posicao, (Vector2){5, 10}, (Vector2){40, 40})) {
+            if (checarColisao(projAtual->posicao, inimigoAtual->posicao, (Vector2) { 5, 10 }, (Vector2) { 40, 40 })) {
                 // Remove o projétil da lista
                 if (projAnterior == NULL) {
                     // Atualiza o início da lista se o projétil removido é o primeiro
                     jogo->projeteis = projAtual->prox;
-                } else {
+                }
+                else {
                     // Bypass o projétil removido
                     projAnterior->prox = projAtual->prox;
                 }
@@ -527,7 +395,8 @@ void checarColisoesProjeteis(ObjetoJogo* jogo) {
                 if (inimigoAnterior == NULL) {
                     // Atualiza o início da lista se o inimigo removido é o primeiro
                     jogo->inimigos = inimigoAtual->prox;
-                } else {
+                }
+                else {
                     // Bypass o inimigo removido
                     inimigoAnterior->prox = inimigoAtual->prox;
                 }
@@ -535,13 +404,14 @@ void checarColisoesProjeteis(ObjetoJogo* jogo) {
                 Inimigo* tempInimigo = inimigoAtual;
                 inimigoAtual = inimigoAtual->prox;
                 free(tempInimigo); // Libera a memória do inimigo removido
-                
+
                 // Adiciona pontos ao jogador
                 jogo->pontuacao += 30; // Adiciona 30 à pontuação
-                
+
                 // Sai do loop de inimigos para verificar outros projéteis
                 break;
-            } else {
+            }
+            else {
                 // Atualiza o ponteiro para o inimigo anterior e move para o próximo inimigo
                 inimigoAnterior = inimigoAtual;
                 inimigoAtual = inimigoAtual->prox;
@@ -570,12 +440,13 @@ void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
         // Itera sobre todos os combustíveis na lista
         while (combustivelAtual != NULL) {
             // Verifica se há colisão entre o projétil atual e o combustível atual
-            if (checarColisao(projAtual->posicao, combustivelAtual->posicao, (Vector2){5, 10}, (Vector2){40, 40})) {
+            if (checarColisao(projAtual->posicao, combustivelAtual->posicao, (Vector2) { 5, 10 }, (Vector2) { 40, 40 })) {
                 // Remove o projétil da lista
                 if (projAnterior == NULL) {
                     // Atualiza o início da lista se o projétil removido é o primeiro
                     jogo->projeteis = projAtual->prox;
-                } else {
+                }
+                else {
                     // Bypass o projétil removido
                     projAnterior->prox = projAtual->prox;
                 }
@@ -588,7 +459,8 @@ void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
                 if (combustivelAnterior == NULL) {
                     // Atualiza o início da lista se o combustível removido é o primeiro
                     jogo->combustiveis = combustivelAtual->prox;
-                } else {
+                }
+                else {
                     // Bypass o combustível removido
                     combustivelAnterior->prox = combustivelAtual->prox;
                 }
@@ -602,7 +474,8 @@ void checarColisoesProjeteisCombustiveis(ObjetoJogo* jogo) {
 
                 // Sai do loop de combustíveis para verificar outros projéteis
                 break;
-            } else {
+            }
+            else {
                 // Atualiza o ponteiro para o combustível anterior e move para o próximo combustível
                 combustivelAnterior = combustivelAtual;
                 combustivelAtual = combustivelAtual->prox;
@@ -631,7 +504,7 @@ int main() {
     const int alturaTela = 700;   // Define a altura da tela do jogo
     InitWindow(larguraTela, alturaTela, "RiverXGH");  // Inicializa a janela do jogo com o título "RiverXGH"
     InitAudioDevice();
-    
+
     jogadorTexture = LoadTexture("resources/Fighter_type_A1.png");
     tiroSound = LoadSound("resources/tiro.mp3");
     aviaoSound = LoadSound("resources/aviao.mp3");
@@ -644,7 +517,7 @@ int main() {
     ObjetoJogo jogo;  // Declara uma variável do tipo ObjetoJogo para armazenar o estado do jogo
     inicializarJogo(&jogo, 3, 0); // Inicializa o jogo com 3 vidas e pontuação 0
     jogo.projeteis = NULL; // Inicializa a lista de projéteis como vazia
-    
+
     int frames = 0;       // Variável para contar o número de frames
     int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
 
@@ -655,7 +528,7 @@ int main() {
 
     while (!WindowShouldClose()) {
         UpdateMusicStream(musicaFundo);
-        
+
         BeginDrawing();
         ClearBackground(BLUE);
 
@@ -667,9 +540,11 @@ int main() {
             // Verifica se a tecla Enter foi pressionada
             if (IsKeyPressed(KEY_ENTER)) {
                 noMenuInicial = 0;  // Muda o estado para começar o jogo
+                PlaySound(aviaoSound);  // Inicia o som de avião de fundo
                 resetarJogo(&jogo); // Reinicializa o jogo
             }
-        } else {
+        }
+        else {
             // Lógica do jogo
             if (!jogo.gameOver) {
                 contadorInimigos++;
@@ -710,7 +585,8 @@ int main() {
                     jogo.jogador.vidas--;
                     if (jogo.jogador.vidas <= 0) {
                         jogo.gameOver = 1;
-                    } else {
+                    }
+                    else {
                         inicializarJogo(&jogo, jogo.jogador.vidas, jogo.pontuacao);
                     }
                 }
@@ -755,11 +631,14 @@ int main() {
                         frames = 0;
                         contadorInimigos = 0;
                         contadorCombustiveis = 0;
-                    } else if (CheckCollisionPointRec(mousePos, botaoVoltarMenu)) {
+                    }
+                    else if (CheckCollisionPointRec(mousePos, botaoVoltarMenu)) {
                         noMenuInicial = 1;  // Retornar ao menu inicial
+                        PlayMusicStream(musicaFundo);  // Reiniciar a música de fundo
                     }
                 }
-            } else {  // Se o jogo não está em estado de "game over"
+            }
+            else {  // Se o jogo não está em estado de "game over"
                 desenharJogador(&jogo.jogador);
                 desenharInimigos(jogo.inimigos);
                 desenharCombustiveis(jogo.combustiveis);
@@ -774,17 +653,17 @@ int main() {
         EndDrawing();
     }
 
-        liberarInimigos(jogo.inimigos);  // Libera a memória dos inimigos
-        liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
-        liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
-        UnloadTexture(jogadorTexture);
-        UnloadSound(tiroSound);
-        UnloadSound(aviaoSound);
-        UnloadSound(explosaoSound);
-        UnloadSound(quedaSound);
-        UnloadMusicStream(musicaFundo);
-        CloseAudioDevice();
-        CloseWindow();  // Fecha a janela do jogo
+    liberarInimigos(jogo.inimigos);  // Libera a memória dos inimigos
+    liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
+    liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
+    UnloadTexture(jogadorTexture);
+    UnloadSound(tiroSound);
+    UnloadSound(aviaoSound);
+    UnloadSound(explosaoSound);
+    UnloadSound(quedaSound);
+    UnloadMusicStream(musicaFundo);
+    CloseAudioDevice();
+    CloseWindow();  // Fecha a janela do jogo
 
-        return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
-    }
+    return 0;  // Retorna 0 para indicar que o programa terminou com sucesso
+}
