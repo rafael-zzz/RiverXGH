@@ -2,8 +2,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include <time.h>
+
 
 int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
+int frameContador = 0;
 
 Texture2D jogadorTexture;
 Sound tiroSound;
@@ -27,7 +31,12 @@ typedef struct Jogador {
 // Estrutura para armazenar as informações dos inimigos
 typedef struct Inimigo {
     Vector2 posicao;   // Posição do inimigo
-    struct Inimigo* prox; // Ponteiro para o próximo inimigo na lista
+    float velocidade;  // Adicionar este campo
+    int direcaoX; 
+    int direcaoY; 
+    int explodindo;
+    float tempoExplosao;
+    struct Inimigo* prox; 
 } Inimigo;
 
 // Estrutura para armazenar as informações dos combustíveis
@@ -38,8 +47,10 @@ typedef struct Combustivel {
 
 // Estrutura para armazenar as informações dos projéteis
 typedef struct Projetil {
-    Vector2 posicao;   // Posição do projétil
-    struct Projetil* prox; // Ponteiro para o próximo projétil na lista
+    Vector2 posicao;
+    float direcaoX;  // Nova adição
+    float direcaoY;  // Nova adição
+    struct Projetil* prox;
 } Projetil;
 
 typedef struct PadraoSpawn {
@@ -142,26 +153,27 @@ void atualizarCombustiveis(Combustivel* head) {
 
 // Função para atualizar a posição dos projéteis e removê-los se saírem da tela
 void atualizarProjeteis(Projetil** head) {
-    Projetil* atual = *head;  // Ponteiro para o projétil atual
-    Projetil* anterior = NULL;  // Ponteiro para o projétil anterior na lista
-
+    Projetil* atual = *head;
+    Projetil* anterior = NULL;
+    
     while (atual != NULL) {
-        atual->posicao.y -= 10.0f; // Atualiza a posição do projétil na direção Y
+        atual->posicao.x += atual->direcaoX;
+        atual->posicao.y += atual->direcaoY;
 
-        // Verifica se o projétil saiu da tela
-        if (atual->posicao.y < 0) {
-            // Remove o projétil da lista
+        // Lógica de remoção de projéteis fora da tela
+        if (atual->posicao.y < 0 || atual->posicao.y > 700 || 
+            atual->posicao.x < 0 || atual->posicao.x > 700) {
             if (anterior == NULL) {
-                *head = atual->prox;  // Atualiza o início da lista se for o primeiro projétil
+                *head = atual->prox;
             } else {
-                anterior->prox = atual->prox;  // Faz o projétil anterior apontar para o próximo, pulando o projétil atual
+                anterior->prox = atual->prox;
             }
-            Projetil* temp = atual;  // Armazena o ponteiro do projétil a ser removido
-            atual = atual->prox;  // Move para o próximo projétil na lista
-            free(temp);  // Libera a memória do projétil removido
+            Projetil* temp = atual;
+            atual = atual->prox;
+            free(temp);
         } else {
-            anterior = atual;  // Atualiza o ponteiro do projétil anterior
-            atual = atual->prox;  // Move para o próximo projétil na lista
+            anterior = atual;
+            atual = atual->prox;
         }
     }
 }
@@ -176,12 +188,138 @@ void desenharInimigos(Inimigo* head) {
     }
 }
 
+void inserirProjetilDirecional(Projetil** head, float x, float y, float dx, float dy) {
+    Projetil* novo = (Projetil*)malloc(sizeof(Projetil));
+    novo->posicao = (Vector2){x, y};
+    novo->direcaoX = dx;  // Adicionar campos de direção na estrutura Projetil
+    novo->direcaoY = dy;
+    novo->prox = *head;
+    *head = novo;
+}
+
+void criarInimigoKamikaze(ObjetoJogo* jogo, float x, float y) {
+    Inimigo* novo = (Inimigo*)malloc(sizeof(Inimigo));
+    novo->posicao.x = x;
+    novo->posicao.y = y;
+    novo->velocidade = 5.0f;
+    novo->direcaoX = GetRandomValue(-1, 1);
+    novo->direcaoY = GetRandomValue(-1, 1);
+    novo->explodindo = 0;
+    novo->tempoExplosao = 0.0f;
+    novo->prox = jogo->inimigos;
+    jogo->inimigos = novo;
+}
+
+void atualizarInimigoKamikaze(ObjetoJogo* jogo, Inimigo* inimigo, float dt) {
+    if (!inimigo->explodindo) {
+        // Mover o inimigo em direção ao jogador
+        float jogadorX = jogo->jogador.posicao.x;
+        float jogadorY = jogo->jogador.posicao.y;
+        
+        if (jogadorX > inimigo->posicao.x) inimigo->direcaoX = 1;
+        else if (jogadorX < inimigo->posicao.x) inimigo->direcaoX = -1;
+        else inimigo->direcaoX = 0;
+        
+        if (jogadorY > inimigo->posicao.y) inimigo->direcaoY = 1;
+        else if (jogadorY < inimigo->posicao.y) inimigo->direcaoY = -1;
+        else inimigo->direcaoY = 0;
+        
+        inimigo->posicao.x += inimigo->direcaoX * inimigo->velocidade;
+        inimigo->posicao.y += inimigo->direcaoY * inimigo->velocidade;
+        
+        // Verificar colisão com o jogador
+        if (CheckCollisionRecs((Rectangle){inimigo->posicao.x, inimigo->posicao.y, 40, 40},
+                              (Rectangle){jogo->jogador.posicao.x, jogo->jogador.posicao.y, 60, 80})) {
+            inimigo->explodindo = 1;
+            inimigo->tempoExplosao = 0.0f;
+            PlaySound(explosaoSound);
+            jogo->jogador.vidas--;
+            if (jogo->jogador.vidas <= 0) {
+                jogo->gameOver = 1;
+            }
+        }
+    } else {
+        // Animação de explosão
+        inimigo->tempoExplosao += dt;
+        if (inimigo->tempoExplosao >= 1.0f) {
+            // Remover o inimigo após a explosão
+            Inimigo* atual = jogo->inimigos;
+            Inimigo* anterior = NULL;
+            while (atual != NULL) {
+                if (atual == inimigo) {
+                    if (anterior == NULL) {
+                        jogo->inimigos = atual->prox;
+                    } else {
+                        anterior->prox = atual->prox;
+                    }
+                    free(atual);
+                    return;
+                }
+                anterior = atual;
+                atual = atual->prox;
+            }
+        }
+    }
+}
+
+void desenharInimigoKamikaze(Inimigo* inimigo) {
+    if (!inimigo->explodindo) {
+        DrawRectangleV(inimigo->posicao, (Vector2){40, 40}, RED);
+    } else {
+        // Desenhar a animação de explosão
+        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 40 * (1.0f - inimigo->tempoExplosao), ORANGE);
+        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 30 * (1.0f - inimigo->tempoExplosao), RED);
+        DrawCircle(inimigo->posicao.x + 20, inimigo->posicao.y + 20, 20 * (1.0f - inimigo->tempoExplosao), YELLOW);
+    }
+}
+
+#define NUM_PROJECTILES 6
+
+// Adicione um parâmetro para passar o objeto do jogo
+void updateCurvedShooterEnemy(Inimigo* inimigo, ObjetoJogo* jogo) {
+    // Usar GetTime() da raylib ou uma alternativa mais precisa
+    static float tempoTotal = 0.0f;
+    tempoTotal += GetFrameTime(); // Usando função da raylib para tempo de frame
+
+    // Movimento curvo usando tempo e funções trigonométricas
+    inimigo->posicao.x += cosf(tempoTotal * 2.0f) * 3.0f;
+    inimigo->posicao.y += sinf(tempoTotal * 2.0f) * 3.0f;
+
+    // Incrementar contador de frames
+    frameContador++;
+
+    // Disparo de projéteis a cada 60 frames (aproximadamente 1 segundo)
+    if (frameContador % 60 == 0) { 
+        for (int i = 0; i < NUM_PROJECTILES; i++) {
+            float angle = (i * 2 * PI) / NUM_PROJECTILES;
+            float projectileX = inimigo->posicao.x + cosf(angle) * 20;
+            float projectileY = inimigo->posicao.y + sinf(angle) * 20;
+            
+            // Passar velocidades de projétil
+            float velocidadeX = cosf(angle) * 5;
+            float velocidadeY = sinf(angle) * 5;
+            
+            // Criar projétil direcional
+            inserirProjetilDirecional(&jogo->projeteis, projectileX, projectileY, velocidadeX, velocidadeY);
+        }
+    }
+}
+
+
+void updateTrianglePatternEnemy(Inimigo* inimigo) {
+    static float t = 0.0f;
+    t += GetFrameTime() * 1.5f;
+    inimigo->posicao.x = 200 + 200 * cosf(t);
+    inimigo->posicao.y = 300 + 100 * sinf(t * 2);
+}
+
+
 // Função para desenhar todos os combustíveis na tela
 void desenharCombustiveis(Combustivel* head) {
     Combustivel* atual = head;  // Ponteiro para o combustível atual
     while (atual != NULL) {
         // Desenha cada combustível como um retângulo verde na posição atual
-        DrawRectangleV(atual->posicao, (Vector2){40, 40}, GREEN);  
+        DrawRectangleV(atual->posicao, (Vector2){40, 40}, GREEN); 
         atual = atual->prox;  // Move para o próximo combustível na lista
     }
 }
