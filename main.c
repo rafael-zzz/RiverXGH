@@ -7,6 +7,7 @@
 int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
 
 Texture2D jogadorTexture;
+Texture2D inimigoZigzagTexture;
 Sound tiroSound;
 Sound aviaoSound;
 Sound explosaoSound;
@@ -230,7 +231,7 @@ void desenharInimigos(Inimigo* head) {
                 break;
                 
             case INIMIGO_ZIGZAG:
-                cor = PURPLE;
+                DrawTexture(inimigoZigzagTexture, atual->posicao.x, atual->posicao.y, WHITE);
                 tamanho = (Vector2){ 35, 35 };
                 break;
         }
@@ -567,6 +568,8 @@ int main() {
     InitWindow(larguraTela, alturaTela, "RiverXGH");  // Inicializa a janela do jogo com o título "RiverXGH"
     InitAudioDevice();
 
+    // Carrega os recursos do jogo
+    inimigoZigzagTexture = LoadTexture("resources/inimigoZigzag.png");
     jogadorTexture = LoadTexture("resources/Fighter_type_A1.png");
     tiroSound = LoadSound("resources/tiro.mp3");
     aviaoSound = LoadSound("resources/aviao.mp3");
@@ -723,6 +726,7 @@ int main() {
     liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
     liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
     UnloadTexture(jogadorTexture);
+    UnloadTexture(inimigoZigzagTexture);
     UnloadSound(tiroSound);
     UnloadSound(aviaoSound);
     UnloadSound(explosaoSound);
