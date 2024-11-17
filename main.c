@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
 
@@ -24,10 +25,22 @@ typedef struct Jogador {
     int vidas;         // Número de vidas do jogador
 } Jogador;
 
-// Estrutura para armazenar as informações dos inimigos
+// Enumeração de diferentes tipos de inimigo
+typedef enum {
+    INIMIGO_BASICO,
+    INIMIGO_RAPIDO,
+    INIMIGO_ZIGZAG,
+    // Adicione novos tipos aqui
+} TipoInimigo;
+
+
 typedef struct Inimigo {
     Vector2 posicao;   // Posição do inimigo
-    struct Inimigo* prox; // Ponteiro para o próximo inimigo na lista
+    TipoInimigo tipo;  // Tipo do inimigo
+    float velocidade;  // Velocidade de movimento
+    float amplitude;   // Para movimento em zigzag
+    float fase;        // Para movimento em zigzag
+    struct Inimigo* prox;
 } Inimigo;
 
 // Estrutura para armazenar as informações dos combustíveis
@@ -66,18 +79,35 @@ typedef struct ObjetoJogo {
 } ObjetoJogo;
 
 // Função para criar um novo inimigo
-Inimigo* criarInimigo(float x, float y) {
-    Inimigo* novo = (Inimigo*)malloc(sizeof(Inimigo)); // Aloca memória para um novo inimigo
-    novo->posicao = (Vector2){ x, y }; // Define a posição do inimigo
-    novo->prox = NULL; // Inicializa o ponteiro para o próximo inimigo como NULL
+Inimigo* criarInimigo(float x, float y, TipoInimigo tipo) {
+    Inimigo* novo = (Inimigo*)malloc(sizeof(Inimigo));
+    novo->posicao = (Vector2){ x, y };
+    novo->tipo = tipo;
+    novo->prox = NULL;
+    
+    // Configurações específicas para cada tipo
+    switch (tipo) {
+        case INIMIGO_BASICO:
+            novo->velocidade = 2.0f;
+            break;
+        case INIMIGO_RAPIDO:
+            novo->velocidade = 4.0f;
+            break;
+        case INIMIGO_ZIGZAG:
+            novo->velocidade = 2.5f;
+            novo->amplitude = 100.0f;
+            novo->fase = 0.0f;
+            break;
+    }
+    
     return novo;
 }
 
 // Função para inserir um inimigo na lista de inimigos
-void inserirInimigo(Inimigo** head, float x, float y) {
-    Inimigo* novo = criarInimigo(x, y); // Cria um novo inimigo
-    novo->prox = *head; // Faz o novo inimigo apontar para o início da lista
-    *head = novo; // Atualiza o início da lista para o novo inimigo
+void inserirInimigo(Inimigo** head, float x, float y, TipoInimigo tipo) {
+    Inimigo* novo = criarInimigo(x, y, tipo);
+    novo->prox = *head;
+    *head = novo;
 }
 
 // Função para criar um novo projétil
@@ -124,9 +154,22 @@ void inserirCombustivel(Combustivel** head, float x, float y) {
 void atualizarInimigos(Inimigo* head) {
     Inimigo* atual = head;
     while (atual != NULL) {
-        // Atualiza a posição do inimigo na direção Y com uma velocidade constante
-        atual->posicao.y += 2.0f;
-        atual = atual->prox;  // Passa para o próximo inimigo na lista
+        switch (atual->tipo) {
+            case INIMIGO_BASICO:
+                atual->posicao.y += atual->velocidade;
+                break;
+                
+            case INIMIGO_RAPIDO:
+                atual->posicao.y += atual->velocidade;
+                break;
+                
+            case INIMIGO_ZIGZAG:
+                atual->posicao.y += atual->velocidade;
+                atual->fase += 0.05f;
+                atual->posicao.x = atual->posicao.x + sinf(atual->fase) * 2.0f;
+                break;
+        }
+        atual = atual->prox;
     }
 }
 
@@ -170,11 +213,30 @@ void atualizarProjeteis(Projetil** head) {
 
 // Função para desenhar todos os inimigos na tela
 void desenharInimigos(Inimigo* head) {
-    Inimigo* atual = head;  // Ponteiro para o inimigo atual
+    Inimigo* atual = head;
     while (atual != NULL) {
-        // Desenha cada inimigo como um retângulo vermelho na posição atual
-        DrawRectangleV(atual->posicao, (Vector2) { 40, 40 }, RED);
-        atual = atual->prox;  // Move para o próximo inimigo na lista
+        Color cor;
+        Vector2 tamanho;
+        
+        switch (atual->tipo) {
+            case INIMIGO_BASICO:
+                cor = RED;
+                tamanho = (Vector2){ 40, 40 };
+                break;
+                
+            case INIMIGO_RAPIDO:
+                cor = ORANGE;
+                tamanho = (Vector2){ 30, 45 };
+                break;
+                
+            case INIMIGO_ZIGZAG:
+                cor = PURPLE;
+                tamanho = (Vector2){ 35, 35 };
+                break;
+        }
+        
+        DrawRectangleV(atual->posicao, tamanho, cor);
+        atual = atual->prox;
     }
 }
 
@@ -556,7 +618,11 @@ int main() {
                     PadraoSpawn padraoEscolhido = padroes[padraoIndex];
 
                     for (int i = 0; i < padraoEscolhido.numInimigos; i++) {
-                        inserirInimigo(&jogo.inimigos, padraoEscolhido.inimigos[i].x, padraoEscolhido.inimigos[i].y);
+                        TipoInimigo tipoAleatorio = GetRandomValue(0, 2); // Escolhe um tipo aleatório
+                        inserirInimigo(&jogo.inimigos, 
+                                    padraoEscolhido.inimigos[i].x, 
+                                    padraoEscolhido.inimigos[i].y, 
+                                    tipoAleatorio);
                     }
 
                     contadorInimigos = 0;
