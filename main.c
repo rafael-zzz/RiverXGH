@@ -7,7 +7,10 @@
 int noMenuInicial = 1;  // Inicialmente, o jogo está no menu inicial
 
 Texture2D jogadorTexture;
+Texture2D inimigoBasicoTexture;
 Texture2D inimigoZigzagTexture;
+Texture2D inimigoKamikazeTexture;
+Texture2D gasolinaTexture;
 Sound tiroSound;
 Sound aviaoSound;
 Sound explosaoSound;
@@ -29,7 +32,7 @@ typedef struct Jogador {
 // Enumeração de diferentes tipos de inimigo
 typedef enum {
     INIMIGO_BASICO,
-    INIMIGO_RAPIDO,
+    INIMIGO_KAMIKAZE,
     INIMIGO_ZIGZAG,
     // Adicione novos tipos aqui
 } TipoInimigo;
@@ -89,13 +92,13 @@ Inimigo* criarInimigo(float x, float y, TipoInimigo tipo) {
     // Configurações específicas para cada tipo
     switch (tipo) {
         case INIMIGO_BASICO:
-            novo->velocidade = 2.0f;
+            novo->velocidade = 3.0f;
             break;
-        case INIMIGO_RAPIDO:
-            novo->velocidade = 4.0f;
+        case INIMIGO_KAMIKAZE:
+            novo->velocidade = 6.0f;
             break;
         case INIMIGO_ZIGZAG:
-            novo->velocidade = 2.5f;
+            novo->velocidade = 4.0f;
             novo->amplitude = 100.0f;
             novo->fase = 0.0f;
             break;
@@ -152,7 +155,7 @@ void inserirCombustivel(Combustivel** head, float x, float y) {
 }
 
 // Função para atualizar a posição dos inimigos
-void atualizarInimigos(Inimigo* head) {
+void atualizarInimigos(Inimigo* head, Jogador jogador) {
     Inimigo* atual = head;
     while (atual != NULL) {
         switch (atual->tipo) {
@@ -160,14 +163,18 @@ void atualizarInimigos(Inimigo* head) {
                 atual->posicao.y += atual->velocidade;
                 break;
                 
-            case INIMIGO_RAPIDO:
+            case INIMIGO_KAMIKAZE:
                 atual->posicao.y += atual->velocidade;
+                // Calcula a direção para o jogador
+                float direcaoX = (jogador.posicao.x - atual->posicao.x);
+                // Move uma pequena fração na direção do jogador
+                atual->posicao.x += (direcaoX * 0.02f);
                 break;
                 
             case INIMIGO_ZIGZAG:
                 atual->posicao.y += atual->velocidade;
                 atual->fase += 0.05f;
-                atual->posicao.x = atual->posicao.x + sinf(atual->fase) * 2.0f;
+                atual->posicao.x += + sinf(atual->fase) * 2.0f;
                 break;
         }
         atual = atual->prox;
@@ -216,17 +223,17 @@ void atualizarProjeteis(Projetil** head) {
 void desenharInimigos(Inimigo* head) {
     Inimigo* atual = head;
     while (atual != NULL) {
-        Color cor;
+
         Vector2 tamanho;
         
         switch (atual->tipo) {
             case INIMIGO_BASICO:
-                cor = RED;
+                DrawTexture(inimigoBasicoTexture, atual->posicao.x, atual->posicao.y, WHITE);
                 tamanho = (Vector2){ 40, 40 };
                 break;
                 
-            case INIMIGO_RAPIDO:
-                cor = ORANGE;
+            case INIMIGO_KAMIKAZE:
+                DrawTexture(inimigoKamikazeTexture, atual->posicao.x, atual->posicao.y, WHITE);
                 tamanho = (Vector2){ 30, 45 };
                 break;
                 
@@ -235,8 +242,6 @@ void desenharInimigos(Inimigo* head) {
                 tamanho = (Vector2){ 35, 35 };
                 break;
         }
-        
-        DrawRectangleV(atual->posicao, tamanho, cor);
         atual = atual->prox;
     }
 }
@@ -246,7 +251,7 @@ void desenharCombustiveis(Combustivel* head) {
     Combustivel* atual = head;  // Ponteiro para o combustível atual
     while (atual != NULL) {
         // Desenha cada combustível como um retângulo verde na posição atual
-        DrawRectangleV(atual->posicao, (Vector2) { 40, 40 }, GREEN);
+        DrawTexture(gasolinaTexture, atual->posicao.x, atual->posicao.y, WHITE);
         atual = atual->prox;  // Move para o próximo combustível na lista
     }
 }
@@ -569,8 +574,12 @@ int main() {
     InitAudioDevice();
 
     // Carrega os recursos do jogo
-    inimigoZigzagTexture = LoadTexture("resources/inimigoZigzag.png");
+    
     jogadorTexture = LoadTexture("resources/Fighter_type_A1.png");
+    inimigoBasicoTexture = LoadTexture("resources/inimigobasico.png");
+    inimigoZigzagTexture = LoadTexture("resources/inimigoZigzag.png");
+    inimigoKamikazeTexture = LoadTexture("resources/inimigokamikaze.png");
+    gasolinaTexture = LoadTexture("resources/gasolina.png");
     tiroSound = LoadSound("resources/tiro.mp3");
     aviaoSound = LoadSound("resources/aviao.mp3");
     explosaoSound = LoadSound("resources/explosao.mp3");
@@ -642,7 +651,7 @@ int main() {
                 }
 
                 atualizarJogador(&jogo.jogador);
-                atualizarInimigos(jogo.inimigos);
+                atualizarInimigos(jogo.inimigos, jogo.jogador);
                 atualizarCombustiveis(jogo.combustiveis);
                 atualizarProjeteis(&jogo.projeteis);
                 checarColisoes(&jogo);
@@ -726,7 +735,10 @@ int main() {
     liberarCombustiveis(jogo.combustiveis);  // Libera a memória dos combustíveis
     liberarProjeteis(jogo.projeteis); // Libera a memória dos projéteis
     UnloadTexture(jogadorTexture);
+    UnloadTexture(inimigoBasicoTexture);
     UnloadTexture(inimigoZigzagTexture);
+    UnloadTexture(inimigoKamikazeTexture);
+    UnloadTexture(gasolinaTexture);
     UnloadSound(tiroSound);
     UnloadSound(aviaoSound);
     UnloadSound(explosaoSound);
