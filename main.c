@@ -11,6 +11,9 @@ Texture2D inimigoBasicoTexture;
 Texture2D inimigoZigzagTexture;
 Texture2D inimigoKamikazeTexture;
 Texture2D gasolinaTexture;
+Texture2D backgroundTexture;
+float scrollingBack = 0.0f;
+float scrollingSpeed = 2.0f;
 Sound tiroSound;
 Sound aviaoSound;
 Sound explosaoSound;
@@ -580,6 +583,7 @@ int main() {
     inimigoZigzagTexture = LoadTexture("resources/inimigoZigzag.png");
     inimigoKamikazeTexture = LoadTexture("resources/inimigokamikaze.png");
     gasolinaTexture = LoadTexture("resources/gasolina.png");
+    backgroundTexture = LoadTexture("resources/background.png");
     tiroSound = LoadSound("resources/tiro.mp3");
     aviaoSound = LoadSound("resources/aviao.mp3");
     explosaoSound = LoadSound("resources/explosao.mp3");
@@ -602,9 +606,12 @@ int main() {
 
     while (!WindowShouldClose()) {
         UpdateMusicStream(musicaFundo);
+    scrollingBack += scrollingSpeed;
+    if (scrollingBack >= backgroundTexture.height) scrollingBack = 0;
 
-        BeginDrawing();
-        ClearBackground(BLUE);
+    BeginDrawing();
+    DrawTexture(backgroundTexture, 0, scrollingBack, WHITE);
+    DrawTexture(backgroundTexture, 0, scrollingBack - backgroundTexture.height, WHITE);
 
         if (noMenuInicial) {
             // Exibir o menu inicial
@@ -739,6 +746,7 @@ int main() {
     UnloadTexture(inimigoZigzagTexture);
     UnloadTexture(inimigoKamikazeTexture);
     UnloadTexture(gasolinaTexture);
+    UnloadTexture(backgroundTexture);
     UnloadSound(tiroSound);
     UnloadSound(aviaoSound);
     UnloadSound(explosaoSound);
