@@ -301,7 +301,7 @@ void liberarProjeteis(Projetil* head) {
 
 // Função para carregar a maior pontuação do arquivo
 int carregarHighScore() {
-    FILE* arquivo = fopen("highscore.txt", "r");
+    FILE* arquivo = fopen("highscore.txt", "a");
     if (arquivo == NULL) {
         return 0;  // Retorna 0 se o arquivo não existir
     }
