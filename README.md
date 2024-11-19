@@ -21,7 +21,7 @@ RiverXGH combina nostalgia e modernidade, trazendo o gameplay clássico de River
 - Mover o avião: Use A e D para mover para a esquerda ou direita.
 - Atirar: Pressione a barra de espaço para disparar tiros e destruir obstáculos.
 - Combustível: Sobrevoe os ícones de combustível para reabastecer ou destrua-os para pontuar.
-- Evitar colisões: Toque em obstáculos ou fique sem combustível para perder vidas.
+- Evitar colisões: Colida com inimigos ou fique sem combustível para perder vidas.
 
 ## 🖥️ Requisitos
 - Compilador C/C++ (compatível com C99 ou superior).
