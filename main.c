@@ -301,7 +301,7 @@ void liberarProjeteis(Projetil* head) {
 
 // Função para carregar a maior pontuação do arquivo
 int carregarHighScore() {
-    FILE* arquivo = fopen("highscore.txt", "a");
+    FILE* arquivo = fopen("highscore.txt", "r");
     if (arquivo == NULL) {
         return 0;  // Retorna 0 se o arquivo não existir
     }
@@ -316,7 +316,7 @@ int carregarHighScore() {
 void salvarHighScore(int pontuacao) {
     int highScoreAtual = carregarHighScore();
     if (pontuacao > highScoreAtual) {
-        FILE* arquivo = fopen("highscore.txt", "w");
+        FILE* arquivo = fopen("highscore.txt", "a");
         if (arquivo != NULL) {
             fprintf(arquivo, "%d", pontuacao);
             fclose(arquivo);
